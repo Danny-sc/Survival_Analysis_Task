@@ -1,2 +1,2 @@
 # Survival_Analysis_Task
-A survival analysis on simulated data (cancer)
+An example of survival analysis conducted on simulated data (cancer)
