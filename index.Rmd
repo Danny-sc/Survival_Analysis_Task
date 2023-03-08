@@ -1,0 +1,456 @@
+--- 
+title:  "Coding Challenge: a Survival Analysis on Simulated Cancer Data"
+author: "Danny Scarponi"
+site: bookdown::bookdown_site
+output:
+    bookdown::pdf_book:
+        includes:
+            in_header: header.tex
+    bookdown::gitbook:
+        config:
+            sharing: null
+        css: 'style.css'
+        highlight: tango
+        includes:
+            in_header: _toggle.html
+        keep_md: TRUE
+bibliography: references.bib  
+linkcolor: blue
+documentclass: book
+link-citations: yes
+description: ""
+---
+
+```{r, child = "_setup.Rmd", include = F, purl = F, cache = T}
+```
+
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = TRUE, cache =T)
+library(ggplot2)
+library(reshape2)
+library(purrr)
+library(tidyverse)
+library(mice)
+library(survival)
+library(howManyImputations)
+library(survminer)
+set.seed(123)
+```
+
+# Summary
+
+## Data Preparation
+
+The three csv files provided (NSCLC_medications, NSCLC_dates, NSCLC_demographics) were merged into a single dataframe by `id` value. The medications' names were standardised, accounting for different spellings of the same medication. Three observations reporting both an end date and a death date were deleted. Two columns were then created: `event`, with zeros for censored data and ones for observations with a death date, and "fu", containing the follow up time in weeks. There were 34 observations with a negative follow up time. Since a negative value is clearly incorrect, and since follow up time is a response variable (and not a covariate), we decided to delete these $34$ observations. The derived dataset was then used to conduct our analysis.
+
+## Cohort Description
+
+The cohort was composed of $463$ patients, with age range $[36,98]$ and mean age $62.4$. Around $61\%$ of the patients were male, and $39\%$ female. Half of the patients were given Crizotinib and half Entrectinib ($231$ vs $232$). The vast majority of patients ($96\%$) had an ECOG score between zero and two, with only $10$ ECOG scores equal to three. The Karnofsky score was always between $45$ and $100$, with the vast majority of scores ($93\%$) above $65$. The weight loss covariate was simmetrically distributed with mean $10.9$ and range $[-29, 52.4]$. A visual inspection suggested that higher values of the ECOG score are associated with higher percentages of deaths.
+The percentage of deaths was slightly higher in patients treated with Crizotinib compared to patients treated with Entrectinib ($65\%$ vs $61\%$). Visualisations of the percentage of deaths by sex, age, weight loss and Karnofsky score did not highlight any other clear association.
+
+## Data Imputation
+
+Of the 463 observations in the derived dataset, 37 had missing data: 27 observations only missing weight loss, 7 only missing the ECOG score, one missing both of them and 2 missing weight loss and Karnofsky score. We assumed that the data was missing at random or completely at random and implemented multiple imputation with the `mice` package. We used the `HowManyImputation` package, based on the work of Von Hippel (@von2020many), to estimate how many imputations were needed to then produce consistent estimates in our survival analysis. Graphical comparisons of the observed and imputed data were conducted, as a diagnostic of the imputation process.
+
+## Survival Analysis
+
+To assess whether the survival of patients differs in the two treatment groups, a Cox Regression model was fitted to each of the $20$ imputed datasets. The statistics from each model were then pooled and analysed. **The treatment (entrectinib vs entrectinib) was not a statistically significant predictor for the survival of patients (p-value $0.28$)**. The ECOG score had instead a highly significant p-value (0.001 for ECOG score 3 compared to score 0). Higher ECOG scores corresponded to higher hazard rates, with score 3 changing the hazard by a factor of $5.35$ $[95\% \text{ CI } (1.94-14.73)]$, compared to score zero. 
+
+Several diagnostics were run to assess the validity of the Cox Regression analysis. The proportional hazards assumption was investigated using Schoenfeld residuals, the linearity between the log-hazard and the continuous covariates was investigated by plotting Martingale residuals and the absence of influential observations (outliers) was inspected by plotting deviance residuals. These diagnostic tests suggested that our analysis was valid.
+
+Since missing variables were imputed, we performed a sensitivity analysis, comparing the results of our main analysis with the results obtained by fitting a Cox Regression model only using the complete observations. The two procedures were in agreement and both suggested that treatment (entrectinib vs entrectinib) was not a statistically significant predictor for the survival of patients.
+
+
+# Data Preparation
+
+```{r, echo = F}
+medications <- read.csv("C:\\Users\\danny\\Downloads\\RWE_Coding_Challenge\\NSCLC_medications.csv")
+dates <- read.csv("C:\\Users\\danny\\Downloads\\RWE_Coding_Challenge\\NSCLC_dates.csv")
+demographics <- read.csv("C:\\Users\\danny\\Downloads\\RWE_Coding_Challenge\\NSCLC_demographics.csv")
+```
+
+We have dataframes `medications`, `dates` and `demographics` corresponding to the three csv files provided. Let's look at their structure:
+
+```{r}
+str(medications)
+str(dates)
+str(demographics)
+```
+
+All dataframes have 500 observations. Let us merge them into a unique dataframe, according to their `id`:
+
+```{r}
+merged <- merge(demographics, medications, by="id")
+merged <- merge(merged, dates, by = "id")
+```
+
+Finally we change the column name `medication_name` to `medication`, since there is no risk of confusion (having only one column referring to medications). Similarly, we rename `end` to `end`, `first_diag` to `first_diag` and `death` to `death`.
+
+```{r}
+colnames(merged)[7] <- "medication"
+colnames(merged)[8] <- "first_diag"
+colnames(merged)[9] <- "death"
+colnames(merged)[10] <- "end"
+```
+
+
+## Medication Variable
+Let's explore the `medication` variable:
+
+```{r}
+table(merged$medication)
+```
+
+We see that there are no missing data and that each medication is reported in two different ways. Let's uniformise that:
+
+```{r}
+merged$medication[merged$medication=="crizotinab"] <- "crizotinib" 
+merged$medication[merged$medication=="Entrectinib"] <- "entrectinib" 
+table(merged$medication)
+```
+
+## Dates Variables
+Let's now examine the three variables related to time:
+
+```{r}
+sum(is.na(merged$first_diag))
+sum(merged$end != "")
+sum(merged$death != "")
+```
+
+We see that no participant has first diagnosis date missing. We also note that we must have three participants for which we have both an end date and a death date. Let's investigate these observations:
+
+```{r}
+merged %>% filter(end != "" & death != "")
+```
+
+The end date for these three participants cannot be correct. It might be plausible that the death dates are correct and one could proceed by simply working with those (discarding the end dates for these three participants). To be safe, in absence of further information, we delete these three observations.
+
+```{r}
+merged <- merged %>% filter(end == "" | death == "")
+```
+
+We now create a column `event` with ones if a death date was reported and zeros otherwise. We then create the `fu` column, calculating the follow up time for each observation. We finally delete the `first_diag`, `end` and `death` columns. 
+
+```{r}
+merged <- merged %>% mutate(event = ifelse(death != "", 1, 0))
+merged$fu[merged$event==1] <- with(merged, difftime(death[event==1], 
+                                                    first_diag[event==1], units = "weeks"))
+merged$fu[merged$event==0] <- with(merged, difftime(end[event==0],
+                                                    first_diag[event==0], units = "weeks"))
+merged <- select(merged, -c(first_diag, end, death))
+```
+
+Let's now analyse the `fu` variable:
+
+```{r}
+summary(merged$fu)
+```
+
+We see that for some observations the follow-up time is negative. Let's count the number of observations with this property:
+
+```{r}
+sum(merged$fu <0) 
+```
+
+Since a negative follow up time is not acceptable, in absence of further information (which could be gathered for example by liaising with who created the original datasets) we delete these 34 observations. Note that we do not impute these missing values from other variables, since they are response variables. We will use imputation later for observations missing covariates.
+
+```{r}
+merged <- filter(merged, fu >=0)
+```
+
+## Demographic Variables
+Let's now check the columns relative to demographic aspects.
+
+```{r}
+summary(merged$age)
+table(recode(merged$sex, "0"="Male", "1"="Female"))
+table(merged$ph.ecog, useNA = "always")
+summary(merged$ph.karno, useNA = "always")
+summary(merged$wt.loss, useNA = "always")
+```
+
+There are no missing values for age or sex, while we have missing values for ECOG and Karnofsky scores, and for weight loss. Let's calculate how many observations have at least one of those three values missing:
+
+```{r}
+sum(is.na(merged$ph.ecog) | is.na(merged$ph.karno) | is.na(merged$wt.loss))
+```
+
+There are 37 such observations, which constitute 8% of the observations in `merged`. We will use multiple imputation in order to leverage the full potential of the information contained in `merged`.
+
+# Cohort Description
+
+Let us check the distribution of our covariates:
+
+```{r}
+table(recode(merged$sex, "0"="Male", "1"="Female"))
+table(merged$medication)
+```
+
+We have more male than female individuals in our dataset ($61\%$ vs $39\%$), while the two treatment groups have very similar size. 
+
+```{r}
+table(merged$ph.ecog)
+ggplot(merged, aes(x=ph.ecog)) + 
+  geom_bar(color = "white", fill = "blue") + theme_bw()
+```
+
+The vast majority of individuals have ECOG score between zero and two, with only $10$ ECOG scores equal to three. 
+
+```{r}
+ggplot(merged, aes(x=ph.karno)) + 
+  geom_histogram(bins = 10, color = "white", fill = "blue") + theme_bw()
+```
+
+The Karnofsky score is always between $45$ and $100$, with the vast majority of scores above $65$.
+
+```{r}
+ggplot(merged, aes(x=wt.loss)) + 
+  geom_histogram(bins=10, color = "white", fill = "blue") + theme_bw()
+summary(merged$wt.loss)
+```
+
+The weight loss covariate has a rather symmetrical distribution, with mean $10.9$ and range $[-29, 52.4]$.
+
+```{r}
+ggplot(merged, aes(x=age)) + 
+  geom_histogram(bins=10, color = "white", fill = "blue") + theme_bw()
+summary(merged$age)
+```
+
+The age covariate has a relatively symmetrical distribution, with mean $62.37$ and range $[36,98]$.
+
+```{r}
+table(merged$ph.ecog, recode(merged$event, "0" = "Censored", "1" = "Death"))
+subset(merged, !is.na(ph.ecog)) %>%
+     ggplot( aes(x=as.factor(ph.ecog), fill = as.factor(event))) +
+     geom_bar(position = "fill") + 
+     labs(x = "ph.ecog") +
+     theme_bw()
+```
+
+This table and plot suggest that higher values of the ECOG score are associated with higher percentages of deaths.
+
+The plots below do not show a clear association between Karnofsky score/age/sex/wt.loss and the percentage of deaths observed.
+
+```{r, fig.width = 10}
+subset(merged, !is.na(ph.karno)) %>%
+     ggplot(aes(x=cut(ph.karno,5), fill = as.factor(event))) +
+     geom_bar(position = "fill") + 
+     labs(x = "ph.karno") +
+     theme_bw()
+subset(merged, !is.na(age)) %>%
+     ggplot(aes(x=cut(age,5), fill = as.factor(event))) +
+     geom_bar(position = "fill") + 
+     labs(x = "age") +
+     theme_bw()
+subset(merged, !is.na(sex)) %>%
+     ggplot(aes(x=sex, fill = as.factor(event))) +
+     geom_bar(position = "fill") + 
+     labs(x = "sex") +
+     theme_bw()
+subset(merged, !is.na(wt.loss)) %>%
+     ggplot(aes(x=cut(wt.loss,5), fill = as.factor(event))) +
+     geom_bar(position = "fill") + 
+     labs(x = "weight loss") +
+     theme_bw()
+```
+
+Finally let us produce a similar plot for the type of treatment:
+
+```{r}
+subset(merged, !is.na(medication)) %>%
+     ggplot(aes(x=medication, fill = as.factor(event))) +
+     geom_bar(position = "fill")
+```
+
+Here we see a (small) difference in percentage by treatment, with Entrectinib having a lower percentage of deaths. Our survival analysis will investigate if this difference is statistically significant.
+
+We conclude this section by comparing the ECOG scores in the two treatment groups:
+
+```{r}
+boxplot(merged$ph.ecog ~ merged$medication, xlab="", ylab="ph.ecog")
+```
+
+This distribution of the ECOG scores does not seem to change substantially between the two treatment groups.
+
+# Data Imputation
+
+## Multiple Imputation
+
+In this analysis we assume that the missing values are either missing completely at random or missing at random. Under this assumption, we use multiple imputation via the MICE package to impute the missing data. Let us start with visualising the missing data:
+
+```{r, fig.height=18, eval = F}
+md.pattern(merged)
+```
+
+``` {r, echo = FALSE}
+knitr::include_graphics('missing_var_str.png')
+```
+
+We see that there are 27 observations only missing weight loss, 7 only missing the ECOG score, one missing both of them and 2 missing weight loss and Karnofsky score. We use the `mice` package to impute the missing data:
+
+```{r, message = F, results='hide'}
+merged$sex = as.factor(merged$sex)
+merged$ph.ecog = as.factor(merged$ph.ecog)
+merged$medication = as.factor(merged$medication)
+imputed_data <- mice(merged, m=20, seed = 101)
+```
+
+```{r}
+summary(imputed_data)
+```
+
+Here we chose 20 imputations, as suggested in @von2020many. We then fit a Cox Regression model to the imputed data and use the `HowManyImputations` package to check whether 20 imputations are enough to have consistent estimates.
+
+```{r}
+models <- with(imputed_data,coxph(Surv(fu, event) ~ age+sex+ph.ecog+ph.karno+wt.loss+medication))
+how_many_imputations(models)
+```
+
+The suggested (minimum) number of imputations is below 20, so there is no need to create more imputations.
+
+## Checking Imputed Data
+
+We plot the observed and imputed data together to check whether the imputed values are plausible compared to the observed values. Let us focus on the weight loss covariate, which was by far the main source of missingness.
+
+```{r, fig.width=8, fig.height=6}
+stripplot(imputed_data, wt.loss ~ .imp,
+           col = c("gray", "black"),
+           pch = c(21, 20),
+           cex = c(1, 1.5))
+```
+
+The `stripplot` function plots the observed data (labeled as 1 on the x-axis), and plots the observed and imputed data together for each completed dataset (labeled as 2 to the number of imputations + 1 on the x-axis). Here we see that the imputed values are not far away from the distribution of the observed values and they do not only span a subset of the distribution of the observed values. 
+
+We can also compare the density of the weight loss covariate in each imputed dataset and compare it with the density in the observed data:
+
+```{r, fig.height =6, fig.width=6}
+densityplot(imputed_data, xlab = "weight loss")
+```
+
+Also this plot shows imputed distributions in line with the distribution in the observed data. 
+
+# Survival Analysis
+
+## Univariate Analysis
+
+Let us start by estimating the survival curve in the two treatment groups for the first imputed dataset:
+
+```{r, fig.width=8, fig.height=6}
+imputed_1 <- complete(imputed_data,1)
+surv_fit <- survfit(Surv(fu, event)~medication, data = imputed_1)
+plot(surv_fit, xlim=c(0,120), col=c("red","blue"), lty=1, lwd=2, 
+     xlab="Weeks", ylab="Survival")
+legend(x = "topright",          # Position
+       legend = c("crizotinib", "entrectinib"),  # Legend texts
+       lty = c(1, 1),           # Line types
+       col = c("red", "blue"),           # Line colors
+       lwd = 2)  
+```
+
+The two curves do not seem substantially different. Let's now run a Log-rank test to check whether the difference in the two estimated curves is statistically significant:
+
+```{r}
+survdiff(Surv(fu, event)~medication, data = imputed_1)
+```
+
+The test suggests that there is not enough evidence to reject the null hypothesis that the two survival curves are not different. Of course, this is a univariate analysis, which does not account for differences in all other covariates between the two treatment groups, and in this analysis we only looked at the first imputed dataset. To account for all covariates and all imputed datasets we fit a Cox Multiple Regression model to each imputed dataset and then pool the statistics obtained.
+
+## Cox Multiple Regression 
+
+To assess whether the survival of patients differs in the two treatment groups, we fitted a Cox Regression model for each of the imputed datasets. Let us analyse the pooled statistics for the fitted Cox models:
+
+```{r}
+summary(pool(models), conf.int = TRUE)
+```
+
+This suggests that the ECOG score is a statistically significant predictor, due to the rather small p-values (below 0.001 for ECOG score 3 compared to score 0). Higher ECOG scores correspond to higher hazard rates, with score 3 changing the hazard by a factor of $5.35=\exp(1.677028332)$ $[95\% \text{ CI } (1.94-14.73)]$, compared to score zero. This result is in accordance with our expectation.
+
+The Karnofsky score also has a small p-value (below 0.05). Higher Karnofsky scores correspond to higher hazard rates, with an increase of one point in the Karnofsky score leading to an increase of $2\%$ $[95\% \text{ CI } (0.3\%-3.6\%)]$ in the hazard. Since higher Karnofsky scores indicate better health conditions, this result is slightly counterintuitive and deserves further investigation.
+
+Even tough the negative coefficient for Entrectinib with respect to Crizotinib is in accordance with our previous remark that the percentage of deaths is lower in patients treated with Entrectinib, **the treatment (entrectinib vs entrectinib) was not a statistically significant predictor for the survival of patients (p-value $0.28$)**.
+
+The p-values for all remaining covariates (age, sex, weight loss) also suggest that they are not statistically significant.
+
+## Verifying Assumptions
+
+### Proportional Hazards
+
+To check whether the assumption of proportional hazard is satisfied, we use the Schoenfeld residuals:
+
+```{r}
+Schoen <- with(imputed_data, 
+               cox.zph(coxph(Surv(fu, event) ~ age+sex+ph.ecog+ph.karno+wt.loss+medication)) )
+p_value <- matrix(0, 20, 6)
+for (i in 1:20) {
+  for (j in 1:6) 
+    p_value[i,j] <- Schoen$analyses[[i]][[1]][j,3]
+}
+sum(p_value <0.05)
+```
+
+The element [i,j] in `p_value`, contains the p-value for the proportionality assumption for the jth predictor on the ith imputed dataset. We see that almost no element `p-value` is below 0.05, suggesting that the proportionality assumption holds for all predictors.
+
+### Linearity
+
+To check whether there is a roughly linear relationship between the log-hazard and the continuous covariates, we start by fitting a Cox model without the continuous covariates. We use the first imputed dataset for this analysis:
+
+```{r}
+cox_categ <- coxph(Surv(fu, event) ~ sex+ph.ecog+medication, data = imputed_1)
+```
+
+We then plot the Martingale residuals of such model against the three continuous covariates: 
+
+```{r, fig.width = 10}
+plot(imputed_1$age, residuals(cox_categ), xlab = "age", ylab = "Martingale residuals")
+lines(lowess(imputed_1$age, residuals(cox_categ)), col='red')
+plot(imputed_1$ph.karno, residuals(cox_categ), xlab = "ph.karno" , ylab = "Martingale residuals")
+lines(lowess(imputed_1$ph.karno, residuals(cox_categ)), col='red')
+plot(imputed_1$wt.loss, residuals(cox_categ), xlab = "weight loss", ylab = "Martingale residuals")
+lines(lowess(imputed_1$wt.loss, residuals(cox_categ)), col='red')
+```
+
+The lowess lines are relatively straight. This, and the fact that the same is true for all other imputed datasets, suggest that the linearity assumption is satisfied.
+
+### Influential Observations
+
+To search for possible outliers, we plot the deviance residuals using the `ggcoxdiagnostics` function:
+
+```{r, results="hide", fig.width=10}
+ggcoxdiagnostics(coxph(Surv(fu, event) ~ age+sex+ph.ecog+ph.karno+wt.loss+medication, 
+                       data = imputed_1), type = "deviance")
+```
+
+The plot suggests that the residuals for the first imputed dataset are roughly symmetrically distributed around zero and most of them fall within the range $[-2,2]$. It is easy to check that the same is true for the residuals of all other imputed datasets. We can therefore assume that none of the observations is terribly influential individually.
+
+## Sensitivity Analysis
+
+Since we imputed missing variables, it is useful to compare the results of our main analysis with the results we obtain by fitting a Cox Regression model only using the complete observations.
+
+```{r}
+merged_inc <- merge(demographics, medications, by="id")
+merged_inc <- merge(merged_inc, dates, by = "id")
+colnames(merged_inc)[7] <- "medication"
+colnames(merged_inc)[8] <- "first_diag"
+colnames(merged_inc)[9] <- "death"
+colnames(merged_inc)[10] <- "end"
+merged_inc$medication[merged_inc$medication=="crizotinab"] <- "crizotinib" 
+merged_inc$medication[merged_inc$medication=="Entrectinib"] <- "entrectinib" 
+merged_inc <- merged_inc %>% filter(end == "" | death == "")
+merged_inc <- merged_inc %>% mutate(event = ifelse(death != "", 1, 0))
+merged_inc$fu[merged_inc$event==1] <- with(merged_inc, difftime(death[event==1], 
+                                                    first_diag[event==1], units = "weeks"))
+merged_inc$fu[merged_inc$event==0] <- with(merged_inc, difftime(end[event==0],
+                                                    first_diag[event==0], units = "weeks"))
+merged_inc <- select(merged_inc, -c(first_diag, end, death))
+merged_inc <- filter(merged_inc, fu >0)
+merged_inc <- filter(merged_inc, !(is.na(wt.loss) | is.na(ph.karno) | is.na(ph.ecog)))
+merged_inc$sex = as.factor(merged_inc$sex)
+merged_inc$ph.ecog = as.factor(merged_inc$ph.ecog)
+merged_inc$medication = as.factor(merged_inc$medication)
+coxph(Surv(fu, event) ~ age+sex+ph.ecog+ph.karno+wt.loss+medication, data = merged_inc)
+```
+
+These results are in agreement with what found in our main analysis: the only covariates having p-value below 0.05 are the ECOG and the Karnofsky scores.
