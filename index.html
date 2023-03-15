@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Coding Challenge: a Survival Analysis on Simulated Cancer Data</title>
+  <meta name="description" content="Coding Challenge: a Survival Analysis on Simulated Cancer Data" />
+  <meta name="generator" content="bookdown 0.24 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Coding Challenge: a Survival Analysis on Simulated Cancer Data" />
+  <meta property="og:type" content="book" />
+  
+  
+  
+  
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Coding Challenge: a Survival Analysis on Simulated Cancer Data" />
+  
+  
+  
+
+<meta name="author" content="Danny Scarponi" />
+
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+
+<link rel="next" href="data-preparation-1.html"/>
+<script src="libs/header-attrs-2.11/header-attrs.js"></script>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.0.1/anchor-sections.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.0.1/anchor-sections.js"></script>
+<script language="javascript"> 
+    function toggle(id) {
+        var ele = document.getElementById("toggleText" + id);
+        var text = document.getElementById("displayText" + id);
+        var buttonText = text.innerHTML.replace("Show: ", "");
+        buttonText = buttonText.replace("Hide: ", "");
+        if(ele.style.display == "block") {
+            ele.style.display = "none";
+            text.innerHTML = "Show: " + buttonText;
+        } else {
+            ele.style.display = "block";
+            text.innerHTML = "Hide: " + buttonText;
+        }
+    } 
+</script>
+
+<script language="javascript">
+    function openCode(evt, codeName, id) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent" + id);
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks" + id);
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(codeName).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+</script>
+
+<script language="javascript">
+    function hide(id){
+        document.getElementById(id).style.display = "none";
+    }
+</script>
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+
+
+<style type="text/css">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  background-color: #f8f8f8; }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ef2929; } /* Alert */
+code span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #c4a000; } /* Attribute */
+code span.bn { color: #0000cf; } /* BaseN */
+code span.cf { color: #204a87; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4e9a06; } /* Char */
+code span.cn { color: #000000; } /* Constant */
+code span.co { color: #8f5902; font-style: italic; } /* Comment */
+code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Documentation */
+code span.dt { color: #204a87; } /* DataType */
+code span.dv { color: #0000cf; } /* DecVal */
+code span.er { color: #a40000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #0000cf; } /* Float */
+code span.fu { color: #000000; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #204a87; font-weight: bold; } /* Keyword */
+code span.op { color: #ce5c00; font-weight: bold; } /* Operator */
+code span.ot { color: #8f5902; } /* Other */
+code span.pp { color: #8f5902; font-style: italic; } /* Preprocessor */
+code span.sc { color: #000000; } /* SpecialChar */
+code span.ss { color: #4e9a06; } /* SpecialString */
+code span.st { color: #4e9a06; } /* String */
+code span.va { color: #000000; } /* Variable */
+code span.vs { color: #4e9a06; } /* VerbatimString */
+code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+<style type="text/css">
+/* Used with Pandoc 2.11+ new --citeproc when CSL is used */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> Summary</a>
+<ul>
+<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#data-preparation"><i class="fa fa-check"></i><b>1.1</b> Data Preparation</a></li>
+<li class="chapter" data-level="1.2" data-path="index.html"><a href="index.html#cohort-description"><i class="fa fa-check"></i><b>1.2</b> Cohort Description</a></li>
+<li class="chapter" data-level="1.3" data-path="index.html"><a href="index.html#data-imputation"><i class="fa fa-check"></i><b>1.3</b> Data Imputation</a></li>
+<li class="chapter" data-level="1.4" data-path="index.html"><a href="index.html#survival-analysis"><i class="fa fa-check"></i><b>1.4</b> Survival Analysis</a></li>
+</ul></li>
+<li class="chapter" data-level="2" data-path="data-preparation-1.html"><a href="data-preparation-1.html"><i class="fa fa-check"></i><b>2</b> Data Preparation</a>
+<ul>
+<li class="chapter" data-level="2.1" data-path="data-preparation-1.html"><a href="data-preparation-1.html#medication-variable"><i class="fa fa-check"></i><b>2.1</b> Medication Variable</a></li>
+<li class="chapter" data-level="2.2" data-path="data-preparation-1.html"><a href="data-preparation-1.html#dates-variables"><i class="fa fa-check"></i><b>2.2</b> Dates Variables</a></li>
+<li class="chapter" data-level="2.3" data-path="data-preparation-1.html"><a href="data-preparation-1.html#demographic-variables"><i class="fa fa-check"></i><b>2.3</b> Demographic Variables</a></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="cohort-description-1.html"><a href="cohort-description-1.html"><i class="fa fa-check"></i><b>3</b> Cohort Description</a></li>
+<li class="chapter" data-level="4" data-path="data-imputation-1.html"><a href="data-imputation-1.html"><i class="fa fa-check"></i><b>4</b> Data Imputation</a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="data-imputation-1.html"><a href="data-imputation-1.html#multiple-imputation"><i class="fa fa-check"></i><b>4.1</b> Multiple Imputation</a></li>
+<li class="chapter" data-level="4.2" data-path="data-imputation-1.html"><a href="data-imputation-1.html#checking-imputed-data"><i class="fa fa-check"></i><b>4.2</b> Checking Imputed Data</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html"><i class="fa fa-check"></i><b>5</b> Survival Analysis</a>
+<ul>
+<li class="chapter" data-level="5.1" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html#univariate-analysis"><i class="fa fa-check"></i><b>5.1</b> Univariate Analysis</a></li>
+<li class="chapter" data-level="5.2" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html#cox-multiple-regression"><i class="fa fa-check"></i><b>5.2</b> Cox Multiple Regression</a></li>
+<li class="chapter" data-level="5.3" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html#verifying-assumptions"><i class="fa fa-check"></i><b>5.3</b> Verifying Assumptions</a>
+<ul>
+<li class="chapter" data-level="5.3.1" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html#proportional-hazards"><i class="fa fa-check"></i><b>5.3.1</b> Proportional Hazards</a></li>
+<li class="chapter" data-level="5.3.2" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html#linearity"><i class="fa fa-check"></i><b>5.3.2</b> Linearity</a></li>
+<li class="chapter" data-level="5.3.3" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html#influential-observations"><i class="fa fa-check"></i><b>5.3.3</b> Influential Observations</a></li>
+</ul></li>
+<li class="chapter" data-level="5.4" data-path="survival-analysis-1.html"><a href="survival-analysis-1.html#sensitivity-analysis"><i class="fa fa-check"></i><b>5.4</b> Sensitivity Analysis</a></li>
+</ul></li>
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Coding Challenge: a Survival Analysis on Simulated Cancer Data</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="header">
+<h1 class="title">Coding Challenge: a Survival Analysis on Simulated Cancer Data</h1>
+<p class="author"><em>Danny Scarponi</em></p>
+</div>
+<div id="summary" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Summary</h1>
+<div id="data-preparation" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Data Preparation</h2>
+<p>The three csv files provided (NSCLC_medications, NSCLC_dates, NSCLC_demographics) were merged into a single dataframe by <code>id</code> value. The medications’ names were standardised, accounting for different spellings of the same medication. Three observations reporting both an end date and a death date were deleted. Two columns were then created: <code>event</code>, with zeros for censored data and ones for observations with a death date, and <code>fu</code>, containing the follow up time in weeks. There were 34 observations with a negative follow up time. Since a negative value is clearly incorrect, and since follow up time is a response variable (and not a covariate), we decided to delete these <span class="math inline">\(34\)</span> observations. The derived dataset was then used to conduct our analysis.</p>
+</div>
+<div id="cohort-description" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Cohort Description</h2>
+<p>The cohort was composed of <span class="math inline">\(463\)</span> patients, with age range <span class="math inline">\([36,98]\)</span> and mean age <span class="math inline">\(62.4\)</span>. Around <span class="math inline">\(61\%\)</span> of the patients were male, and <span class="math inline">\(39\%\)</span> female. Half of the patients were given Crizotinib and half Entrectinib (<span class="math inline">\(231\)</span> vs <span class="math inline">\(232\)</span>). The vast majority of patients (<span class="math inline">\(96\%\)</span>) had an ECOG score between zero and two, with only <span class="math inline">\(10\)</span> ECOG scores equal to three. The Karnofsky score was always between <span class="math inline">\(45\)</span> and <span class="math inline">\(100\)</span>, with the vast majority of scores (<span class="math inline">\(93\%\)</span>) above <span class="math inline">\(65\)</span>. The weight loss covariate was simmetrically distributed with mean <span class="math inline">\(10.9\)</span> and range <span class="math inline">\([-29, 52.4]\)</span>. A visual inspection suggested that higher values of the ECOG score are associated with higher percentages of deaths.
+The percentage of deaths was slightly higher in patients treated with Crizotinib compared to patients treated with Entrectinib (<span class="math inline">\(65\%\)</span> vs <span class="math inline">\(61\%\)</span>). Visualisations of the percentage of deaths by sex, age, weight loss and Karnofsky score did not highlight any other clear association.</p>
+</div>
+<div id="data-imputation" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Data Imputation</h2>
+<p>Of the 463 observations in the derived dataset, 37 had missing data: 27 observations only missing weight loss, 7 only missing the ECOG score, one missing both of them and 2 missing weight loss and Karnofsky score. We assumed that the data was missing at random or completely at random and implemented multiple imputation with the <code>mice</code> package. We used the <code>HowManyImputation</code> package, based on the work of Von Hippel (<span class="citation"><a href="#ref-von2020many" role="doc-biblioref">Von Hippel</a> (<a href="#ref-von2020many" role="doc-biblioref">2020</a>)</span>), to estimate how many imputations were needed to then produce consistent estimates in our survival analysis. Graphical comparisons of the observed and imputed data were conducted, as a diagnostic of the imputation process.</p>
+</div>
+<div id="survival-analysis" class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Survival Analysis</h2>
+<p>To assess whether the survival of patients differs in the two treatment groups, a Cox Regression model was fitted to each of the <span class="math inline">\(20\)</span> imputed datasets. The statistics from each model were then pooled and analysed. <strong>The treatment (Crizotinib vs Entrectinib) was not a statistically significant predictor for the survival of patients (p-value <span class="math inline">\(0.28\)</span>)</strong>. The ECOG score had instead a highly significant p-value (0.001 for ECOG score 3 compared to score 0). Higher ECOG scores corresponded to higher hazard rates, with score 3 changing the hazard by a factor of <span class="math inline">\(5.35\)</span> <span class="math inline">\([95\% \text{ CI } (1.94-14.73)]\)</span>, compared to score zero.</p>
+<p>Several diagnostics were run to assess the validity of the Cox Regression analysis. The proportional hazards assumption was investigated using Schoenfeld residuals, the linearity between the log-hazard and the continuous covariates was investigated by plotting Martingale residuals and the absence of influential observations (outliers) was inspected by plotting deviance residuals. These diagnostic tests suggested that our analysis was valid.</p>
+<p>Since missing variables were imputed, we performed a sensitivity analysis, comparing the results of our main analysis with the results obtained by fitting a Cox Regression model only using the complete observations. The two procedures were in agreement and both suggested that treatment (Crizotinib vs Entrectinib) was not a statistically significant predictor for the survival of patients.</p>
+</div>
+</div>
+<h3>References</h3>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-von2020many" class="csl-entry">
+Von Hippel, Paul T. 2020. <span>“How Many Imputations Do You Need? A Two-Stage Calculation Using a Quadratic Rule.”</span> <em>Sociological Methods &amp; Research</em> 49 (3): 699–718.
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+
+<a href="data-preparation-1.html" class="navigation navigation-next navigation-unique" aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": null,
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": null,
+"text": null
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": ["_main.pdf"],
+"search": {
+"engine": "fuse",
+"options": null
+},
+"toc": {
+"collapse": "subsection"
+}
+});
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    var src = "true";
+    if (src === "" || src === "true") src = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML";
+    if (location.protocol !== "file:")
+      if (/^https?:/.test(src))
+        src = src.replace(/^https?:/, '');
+    script.src = src;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+
+</html>
